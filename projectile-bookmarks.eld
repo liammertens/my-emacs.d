@@ -1,0 +1,1 @@
+("~/.emacs.d/" "~/projects/helloreact/" "~/go/src/gopkg.in/gomail.v2/" "~/go/src/github.com/liammertens/gomail/")

@@ -1,16 +1,29 @@
 ;;; Package --- summary
+
+;;; Commentary:
 ;; Added by Package.el.  This must come before configurations of
 ;; installed packages.  Don't delete this line.  If you don't want it,
 ;; just comment it out by adding a semicolon to the start of the line.
 ;; You may delete these explanatory comments.
+
+;;; Code:
 (package-initialize)
 
 (require 'package)
-(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+;;(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+(let* ((no-ssl (and (memq system-type '(windows-nt ms-dos))
+                    (not (gnutls-available-p))))
+       (url (concat (if no-ssl "http" "https") "://melpa.org/packages/")))
+  (add-to-list 'package-archives (cons "melpa" url) t))
+(when (< emacs-major-version 24)
+  ;; For important compatibility libraries like cl-lib
+  (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/")))
+
 (add-to-list 'load-path "~/.emacs.d/elisp")
 (add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
 (add-to-list 'default-frame-alist '(fullscreen . maximized))
-(load-theme 'solarized-dark t)
+
+(load-theme 'darktooth t)
 
 (package-initialize)
 
@@ -21,10 +34,12 @@
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
    (quote
-    ("7f3ef7724515515443f961ef87fee655750512473b1f5bf890e2dc7e065f240c" "3629b62a41f2e5f84006ff14a2247e679745896b5eaa1d5bcfbc904a3441b0cd" "7e47dcc45666ea0d8f072acd024771ee0308a4a2228694cfba21f184803088a9" "4b599d15ac3248938afbf4794c43a680244d84f46ef10824b32299181b627672" "a3d40cd364b9a6cc2c33be39b35d7a5bbf872f8943f170bb17bf6156c2674921" "ff7625ad8aa2615eae96d6b4469fcc7d3d20b2e1ebc63b761a349bebbb9d23cb" "d677ef584c6dfc0697901a44b885cc18e206f05114c8a3b7fde674fce6180879" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" "a8245b7cc985a0610d71f9852e9f2767ad1b852c2bdea6f4aadc12cce9c4d6d0" default)))
+    ("a1a966cf2e87be6a148158c79863440ba2e45aa06cc214341feafe5c6deca4f2" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default)))
+ '(js2-highlight-level 3)
+ '(js2-include-node-externs t)
  '(package-selected-packages
    (quote
-    (yasnippet auto-complete go-mode flycheck autopair solarized-theme)))
+    (company-tern yasnippet counsel-projectile projectile xref-js2 js2-mode darktooth-theme counsel company-quickhelp powerline web-mode emmet-mode company flycheck solarized-theme)))
  '(show-paren-mode t)
  '(tool-bar-mode nil))
 
@@ -33,19 +48,71 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:family "Fantasque Sans Mono" :foundry "outline" :slant normal :weight normal :height 113 :width normal)))))
+ '(default ((t (:family "Envy Code R" :foundry "outline" :slant normal :weight normal :height 120 :width normal)))))
 
 (global-flycheck-mode)
-(require 'go-autocomplete)
-(require 'auto-complete-config)
-(ac-config-default)
+(projectile-mode)
+(require 'company)
+(require 'company-go)
+(require 'company-tern)
+(global-company-mode)
+(company-quickhelp-mode 1)
+(yas-global-mode t)
 
-(yas-global-mode 1)
+(add-hook 'go-mode-hook (lambda ()
+                          (set (make-local-variable 'company-backends) '(company-go))
+			  (local-set-key (kbd "C-c C-k") 'godoc)
+))
 
-(global-set-key (kbd "C-c C-k") 'godoc)
+(setq company-tooltip-limit 20)                      ; bigger popup window
+(setq company-dabbrev-downcase 0)
+(setq company-idle-delay .3)                         ; decrease delay before autocompletion popup shows
+(setq company-echo-delay 0)                          ; remove annoying blinking
+(setq company-begin-commands '(self-insert-command)) ; start autocompletion only after typing
 
-(require 'autopair)
-(autopair-global-mode)
+(add-hook 'before-save-hook 'gofmt-before-save)
+
+(add-hook 'web-mode-hook  'emmet-mode) ;; enable Emmet's css abbreviation.
+
+(add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.jsx?\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
+(add-to-list 'interpreter-mode-alist '("node" . js2-mode))
+(setq web-mode-enable-css-colorization t)
+(setq web-mode-enable-current-element-highlight t)
+(setq web-mode-enable-current-column-highlight t)
+
+(require 'xref-js2)
+(define-key js2-mode-map (kbd "M-.") nil)
+(add-hook 'js2-mode-hook (lambda ()
+			   (tern-mode)
+			   (add-hook 'xref-backend-functions #'xref-js2-xref-backend nil t)
+))
+;; Disable completion keybindings, as we use xref-js2 instead
+(define-key tern-mode-keymap (kbd "M-.") nil)
+(define-key tern-mode-keymap (kbd "M-,") nil)
+
+(require 'neotree)
+(global-set-key [f8] 'neotree-toggle)
+
+(require 'powerline)
+(powerline-default-theme)
+(setq powerline-default-separator 'wave)
+
+(ivy-mode 1)
+(setq ivy-use-virtual-buffers t)
+(setq ivy-count-format "(%d/%d) ")
+(global-set-key (kbd "C-s") 'swiper)
+(global-set-key (kbd "M-x") 'counsel-M-x)
+(global-set-key (kbd "C-x C-f") 'counsel-find-file)
+(global-set-key (kbd "<f1> f") 'counsel-describe-function)
+(global-set-key (kbd "<f1> v") 'counsel-describe-variable)
+(global-set-key (kbd "<f1> l") 'counsel-find-library)
+(global-set-key (kbd "<f2> i") 'counsel-info-lookup-symbol)
+(global-set-key (kbd "<f2> u") 'counsel-unicode-char)
+
+(counsel-projectile-on)
+(electric-pair-mode 1)
 
 (show-paren-mode 1)
 
